@@ -102,6 +102,6 @@ Kafka topic, consumer, and producer utilities are under src/kafka_project/kafka/
 
 # 🧑‍💻 Author
 
-<huy-dg>
-📧 <duongghuy96@gmail.com
-🌐 <https://github.com/huy-dg
+huy-dg
+📧 duongghuy96@gmail.com
+🌐 https://github.com/huy-dg
