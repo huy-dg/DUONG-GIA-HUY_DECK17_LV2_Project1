@@ -53,8 +53,9 @@ MongoDB Community Edition MUST be install
 
 ### 1️⃣ Clone the repository
 ```bash
-git clone https://github.com/<your-username>/kafka-mongo-streaming.git
-cd kafka-mongo-streaming
+git clone https://github.com/huy-dg/DUONG-GIA-HUY_DECK17_LV2_Project1.git
+mv DUONG-GIA-HUY_DECK17_LV2_Project1 "any_name"
+cd "any_name"
 ```
 
 ### 2️⃣ Create and activate Conda environment
