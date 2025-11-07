@@ -1,0 +1,107 @@
+# Kafka → MongoDB Streaming Pipeline
+
+This project implements a **data streaming pipeline** that consumes real-time data from a Kafka topic and writes processed results into MongoDB.
+
+It is built using:
+- 🐍 **Python 3.13+**
+- 🧰 **Poetry** for dependency management
+- ☁️ **Confluent Kafka** client
+- 🍃 **MongoDB** for storage
+- ⚙️ **Conda** for environment isolation
+
+
+
+---
+
+# PREREQUISITES
+
+Miniconda or Anaconda MUST be install
+Kafka containers MUST be started
+MongoDB Community Edition MUST be install
+
+---
+
+
+
+# 📁 Project structure
+├── kafka_project/ 
+         ├── scripts/ 
+         │ ├── pycache/ 
+         │ ├── setup.py 
+         │ ├── streaming_data_from_source.py 
+         │ └── consumer_to_mongodb.py 
+         ├── src/ 
+         │ └── kafka_project/ 
+         │ ├── init.py 
+         │ ├── pycache/ 
+         │ ├── core/ 
+         │ │ ├── pycache/ 
+         │ │ ├── config.py 
+         │ │ └── json_processing.py 
+         │ └── kafka/ 
+         │ ├── pycache/ 
+         │ ├── consumer.py 
+         │ ├── producer.py 
+         │ └── topic.py 
+         ├── tests/ 
+         │ └── init.py 
+         ├── .env 
+         ├── environment.yml 
+         ├── .gitignore 
+         ├── poetry.lock 
+         ├── pyproject.toml 
+         └── README.md
+
+## ⚙️ Environment setup
+
+### 1️⃣ Clone the repository
+```bash
+git clone https://github.com/<your-username>/kafka-mongo-streaming.git
+cd kafka-mongo-streaming
+```
+
+### 2️⃣ Create and activate Conda environment
+```bash
+conda env create -f environment.yml
+conda activate kafka_streaming_env
+```
+
+### 3️⃣ Install dependencies with Poetry
+```bash
+poetry install
+```
+
+### 🔑 Environment variables
+Use the .env provided personally
+or email me at duongghuy96@gmail.com
+
+---
+
+
+
+# 🚀 Running the pipeline
+```bash
+# Start the data source → Kafka
+python scripts/streaming_data_from_source.py
+
+# Start the consumer → MongoDB writer (in another terminal)
+python scripts/consumer_to_mongodb.py
+```
+
+---
+
+# 🧱 Development notes
+
+All configuration is handled in src/kafka_project/core/config.py
+
+JSON parsing and validation are handled in json_processing.py
+
+Kafka topic, consumer, and producer utilities are under src/kafka_project/kafka/
+
+---
+
+# 🧑‍💻 Author
+
+<huy-dg>
+📧 <duongghuy96@gmail.com
+🌐 <https://github.com/huy-dg
