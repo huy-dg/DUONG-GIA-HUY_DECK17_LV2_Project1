@@ -26,49 +26,28 @@ MongoDB Community Edition MUST be install
 # 📁 Project structure
 ├── kafka_project/ 
 
-         ├── scripts/ 
-
-         │ ├── setup.py 
-
-         │ ├── streaming_data_from_source.py 
-
-         │ └── consumer_to_mongodb.py 
-
-         ├── src/ 
-
-         │ └── kafka_project/ 
-
-         │ ├── __init__.py 
-
-         │ ├── core/ 
-
-         │ │ ├── config.py 
-
-         │ │ └── json_processing.py 
-
-         │ └── kafka/ 
-
-         │   ├── consumer.py 
-
-         │   ├── producer.py 
-
-         │   └── topic.py 
-
-         ├── tests/ 
-
-         │ └── __init__.py 
-
-         ├── .env 
-
-         ├── environment.yml 
-
-         ├── .gitignore 
-
-         ├── poetry.lock 
-
-         ├── pyproject.toml 
-
-         └── README.md
+    ├── scripts/ 
+    │ ├── setup.py 
+    │ ├── streaming_data_from_source.py 
+    │ └── consumer_to_mongodb.py 
+    ├── src/ 
+    │ └── kafka_project/ 
+    │ ├── __init__.py 
+    │ ├── core/ 
+    │ │ ├── config.py 
+    │ │ └── json_processing.py 
+    │ └── kafka/ 
+    │   ├── consumer.py 
+    │   ├── producer.py 
+    │   └── topic.py 
+    ├── tests/ 
+    │ └── __init__.py 
+    ├── .env 
+    ├── environment.yml 
+    ├── .gitignore 
+    ├── poetry.lock 
+    ├── pyproject.toml 
+    └── README.md
 
 ## ⚙️ Environment setup
 
