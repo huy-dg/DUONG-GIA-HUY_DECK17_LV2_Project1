@@ -63,7 +63,7 @@ cd kafka-mongo-streaming
 ### 2️⃣ Create and activate Conda environment
 ```bash
 conda env create -f environment.yml
-conda activate kafka_streaming_env
+conda activate test
 ```
 
 ### 3️⃣ Install dependencies with Poetry
