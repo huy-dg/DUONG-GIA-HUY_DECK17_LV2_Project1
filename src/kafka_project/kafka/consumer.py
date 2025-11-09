@@ -3,7 +3,9 @@ from confluent_kafka import Consumer, KafkaException, KafkaError  # ,TopicPartit
 from kafka_project.core.config import settings
 
 from kafka_project.core.json_processing import save_to_json
+from kafka_project.core.logger import setup_logger
 
+logger = setup_logger(__name__, level="DEBUG")
 
 # -----------------------------------------------------------------------------#
 # -----------------------------------------------------------------------------#
@@ -30,7 +32,7 @@ def consumer_subscribe(conf, topic_name, on_assign):
     consumer = Consumer(conf)
     topic_name = topic_name if isinstance(topic_name, list) else [topic_name]
     consumer.subscribe(topic_name, on_assign=on_assign)
-    print(f"Subscribed to topic: {topic_name}")
+    logger.info(f"Subscribed to topic: {topic_name}")
     return consumer
 
 
@@ -38,7 +40,7 @@ def consumer_subscribe(conf, topic_name, on_assign):
 
 
 def on_assign(consumer, partitions):
-    print("✅ Assigned partitions:", [p.partition for p in partitions])
+    logger.info("✅ Assigned partitions:", [p.partition for p in partitions])
     consumer.assign(partitions)
 
 
@@ -49,7 +51,7 @@ def consumer_polling(consumer, timeout):
     message_count = 0
 
     try:
-        print("📡 Listening for messages... (Ctrl+C to stop)")
+        logger.info("📡 Listening for messages... (Ctrl+C to stop)")
         while True:
             msg = consumer.poll(timeout)
 
@@ -59,25 +61,29 @@ def consumer_polling(consumer, timeout):
 
             if msg.error():
                 if msg.error().code() == KafkaError._PARTITION_EOF:
-                    print(
+                    logger.info(
                         f"End of partition reached {msg.topic()} [{msg.partition()}] at offset {msg.offset()}"
                     )
                     break
                 else:
                     raise KafkaException(msg.error())
 
+            topic = msg.topic()
+            partition = msg.partition()
+            offset = msg.offset()
+
             message_count += 1
-            print(f"📥 Received message #{message_count}")
-            yield msg.value().decode("utf-8")
+            logger.debug(f"📥 Received message #{message_count}")
+            yield msg.value().decode("utf-8"), topic, partition, offset
 
     except Exception as e:
-        print(f"❌ Error during polling: {str(e)}")
+        logger.exception(f"❌ Error during polling: {str(e)}")
     except KeyboardInterrupt:
-        print("\n🛑 Stopped by user during polling.")
+        logger.exception("\n🛑 Stopped by user during polling.")
 
     finally:
         consumer.close()
-        print(f"📦 Total messages consumed: {message_count}")
+        logger.info(f"📦 Total messages consumed: {message_count}")
 
 
 # -----------------------------------------------------------------------------#
@@ -99,7 +105,7 @@ if __name__ == "__main__":
     save_to_json(data=message, output_dir="./data", save_name="source_topic_messages")
     consumer.close()
 
-    print("Time elapsed (s): ", end - start)
+    logger.debug("Time elapsed (s): ", end - start)
 
 
 # |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||#

@@ -5,6 +5,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    # Environment configuration
+    log_level: str
+
     # Data source Server configuration
     source_bootstrap_servers: str
     source_security_protocol: str
@@ -22,14 +25,21 @@ class Settings(BaseSettings):
     streaming_sasl_mechanism: str
     streaming_sasl_username: str
     streaming_sasl_password: str
+
+    # Data streaming consumer configuration
     streaming_topic_name: str
     streaming_consumer_group_id: str
 
-    # General topic/consumer/producer configuration
+    # Global topic configuration
     topic_partitions: int
     topic_replication_factor: int
+
+    # Global consumer configuration
     topic_auto_offset_reset: str
     enable_auto_commit: bool
+    enable_partition_eof: bool
+
+    # Global producer configuration
     acks: str
     linger_ms: int
     retries: int

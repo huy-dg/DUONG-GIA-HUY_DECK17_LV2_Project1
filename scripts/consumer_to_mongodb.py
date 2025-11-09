@@ -9,8 +9,11 @@ from pymongo.errors import BulkWriteError
 from scripts.setup import init_consumer_process, init_mongodb
 from kafka_project.kafka.consumer import consumer_polling
 from kafka_project.core.json_processing import save_to_json
+from kafka_project.core.logger import setup_logger
 
 # from kafka_project.core.config import settings
+
+logger = setup_logger(__name__, level="DEBUG")
 
 # -----------------------------------------------------------------------------#
 # -----------------------------------------------------------------------------#
@@ -26,27 +29,47 @@ Arguments:
 Returns: 
     - None
 """
+"""
+new_offset_metadata structure:
+{
+    "topic": topic_name,
+    "partitions": {
+        "0": 1234
+    }
+}
+"""
 
 
 def run_consumer_to_queue(consumer, topic_name, queue):
+
     print(f"Polling from Kafka topic: {topic_name}")
-    for message in consumer_polling(consumer, timeout=1.0):
+
+    for message, topic, partition, offset in consumer_polling(consumer, timeout=10.0):
         try:
             if message is None or type(message) is not str:
                 continue
             data = json.loads(message)
+
+            new_offset_metadata = {
+                "topic": topic_name,
+                "partitions": {str(partition): offset},
+            }
+            logger.debug("✅ℹ️: message consumed and loaded")
+            # manual commit
+            # consumer.commit(asynchronous=False)
         except json.JSONDecodeError:
-            print(f"⚠️ Skipping invalid JSON message: {message}")
+            logger.exception(f"⚠️ Skipping invalid JSON message: {message}")
             continue
         except Exception as e:
-            print(f"❌ Unexpected error (skipping to next message): {e}")
+            logger.exception(f"❌ Unexpected error (skipping to next message): {e}")
             continue
-        while True:
-            try:
-                queue.put(data, timeout=2)
-                break
-            except Full:
-                time.sleep(2)
+        try:
+            queue.put(data, timeout=2)
+            logger.debug("✅ℹ️: data put to queue successfully")
+            yield new_offset_metadata
+        except Full:
+            logger.debug("✅ℹ️: Queue is full")
+            time.sleep(2)
 
 
 # -----------------------------------------------------------------------------#
@@ -66,10 +89,13 @@ Returns:
 """
 
 
-def queue_writer_to_mongodb(queue, collection, batch_size=2000, write_interval=5):
+def queue_writer_to_mongodb(
+    queue, offset_doc, collection, batch_size=2000, write_interval=5
+):
 
     batch = []
     write_checkpoint = time.time()
+    offset_collection = offset_doc[0]
 
     while True:
         try:
@@ -77,7 +103,6 @@ def queue_writer_to_mongodb(queue, collection, batch_size=2000, write_interval=5
             data = queue.get(timeout=1)  # data in queue is dict
             if data == "STOP":
                 break
-
             batch.append(UpdateOne({"_id": data["_id"]}, {"$set": data}, upsert=True))
 
             # Flush if batch full or timeout
@@ -86,25 +111,51 @@ def queue_writer_to_mongodb(queue, collection, batch_size=2000, write_interval=5
                 or time.time() - write_checkpoint > write_interval
             ):
                 bulk_write_to_mongodb(batch, collection, retries=3)
+                logger.debug("✅ℹ️: Bulk data written")
+
+                with offset_doc[2]:
+                    offset_metadata = offset_doc[1].copy()
+                offset_collection.update_one(
+                    {"_id": offset_metadata["topic"]},
+                    {"$set": {"partitions": offset_metadata["partitions"]}},
+                    upsert=True,
+                )
+                logger.debug(
+                    f"✅ℹ️: Offset_metadata written: {offset_metadata['partitions'].items()}"
+                )
+
                 write_checkpoint = time.time()
 
-        except Full:
-            if batch:
-                bulk_write_to_mongodb(batch, collection, retries=3)
-                write_checkpoint = time.time()
         except Empty:
             if batch:
                 bulk_write_to_mongodb(batch, collection, retries=3)
+                offset_collection.update_one(
+                    {"_id": offset_metadata["topic"]},
+                    {"$set": {"partitions": offset_metadata["partitions"]}},
+                    upsert=True,
+                )
+                logger.debug(
+                    f"✅ℹ️: Offset_metadata written: {offset_metadata['partitions'].items()}"
+                )
+
                 write_checkpoint = time.time()
             time.sleep(1)
         except Exception as e:
-            print(f"❌ Error in mongo_writer_worker: {e}")
+            logger.exception(f"❌ Error in mongo_writer_worker: {e}")
             continue
 
     # Write the remaining batch before exiting
     if batch:
         bulk_write_to_mongodb(batch, collection, retries=3)
-    print("🧹 Mongo writer thread stopped.")
+        offset_collection.update_one(
+            {"_id": offset_metadata["topic"]},
+            {"$set": {"partitions": offset_metadata["partitions"]}},
+            upsert=True,
+        )
+        logger.debug(
+            f"✅ℹ️: Offset_metadata written: {offset_metadata['partition'].items()}"
+        )
+    logger.info("🧹 Mongo writer thread stopped.")
 
 
 # -----------------------------------------------------------------------------#
@@ -128,11 +179,11 @@ def bulk_write_to_mongodb(batch, collection, retries=3):
     while retry < retries:
         try:
             result = collection.bulk_write(batch, ordered=False)
-            print(
+            logger.info(
                 f"📦 Batch written: inserted={result.upserted_count}, modified={result.modified_count}"
             )
         except BulkWriteError as e:
-            print(f"⚠️ Bulk write warning: {e.details}")
+            logger.exception(f"⚠️ Bulk write warning: {e.details}")
             retry += 1
             time.sleep(1)
             if retry == retries:
@@ -142,7 +193,7 @@ def bulk_write_to_mongodb(batch, collection, retries=3):
                 )
             continue
         except Exception as e:
-            print(f"❌ MongoDB batch insert error: {e}")
+            logger.exception(f"❌ MongoDB batch insert error: {e}")
             retry += 1
             time.sleep(1)
             continue
@@ -160,45 +211,67 @@ Description:
     - mongodb config: see in setup.py script.
     - pipeline procedures:
         1. Consume message from Kafka topic.
-        2. Put message into a thread-safe queue.
-        3. A separate thread reads from the queue in batches and writes to MongoDB.
+        2. Put message into a thread-safe queue and safe offsets into offset_metadata.
+        3. A separate thread reads from the queue in batches and writes to MongoDB
+           while also write offset_metadata into mongoDB.
         4. On keyboard interrupt, stop consuming and wait for the writer thread to finish.
         5. If writer failed after many retries, save the failed batch to a JSON file.
         6. If consumed all messages, receive EOF and send "STOP" signal to writer.
         7. Writer thread flushes remaining messages and exits.
 """
+"""
+offset_metadata writer structure:
+{
+    "topic": topic_name,
+    "partitions": {
+        "0": 1234,
+        "1": 1445,
+        "2": 1175,
+        ...
+    }
+}
+"""
 
 
-def streaming():
-    collection = init_mongodb()
-    consumer, streaming_topic_name = init_consumer_process()
-    message_queue = Queue(maxsize=10_000)
+def main():
+    collection, offset_collection = init_mongodb()
+    consumer, streaming_topic_name = init_consumer_process(offset_collection)
+    message_queue = Queue(maxsize=20_000)
+    offset_metadata = {"topic": streaming_topic_name, "partitions": {}}
+    offset_lock = threading.Lock()
+    offset_doc = [offset_collection, offset_metadata, offset_lock]
+
+    logger.debug("✅ℹ️: Process initiation OK")
 
     writer_thread = threading.Thread(
         target=queue_writer_to_mongodb,
-        args=(message_queue, collection, 2000, 5),
-        daemon=True,
+        args=(message_queue, offset_doc, collection, 2000, 5),
+        daemon=False,
     )
 
     writer_thread.start()
-    print(
+    logger.info(
         f"🚀 Start reading from Kafka → MongoDB ({streaming_topic_name} → {collection})"
     )
 
     try:
-        run_consumer_to_queue(consumer, streaming_topic_name, message_queue)
+        for new in run_consumer_to_queue(consumer, streaming_topic_name, message_queue):
+            if "partitions" in new:
+                offset_metadata["partitions"].update(new["partitions"])
+            with offset_doc[2]:
+                offset_doc[1] = offset_metadata
     except KeyboardInterrupt:
-        print("❌ Streaming interrupted by user.")
+        logger.exception("❌ Streaming interrupted by user.")
     except Exception as e:
-        print(f"❌ Unexpected error during streaming: {e}")
+        logger.exception(f"❌ Unexpected error during streaming: {e}")
     finally:
         message_queue.put("STOP")
         writer_thread.join()
-        print("✅ Streaming finished.")
+        logger.info("✅ Streaming finished.")
 
 
 # -----------------------------------------------------------------------------#
 # -----------------------------------------------------------------------------#
 
 if __name__ == "__main__":
-    streaming()
+    main()

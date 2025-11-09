@@ -3,7 +3,11 @@
 import os
 import json
 
+from kafka_project.core.logger import setup_logger
+
 # import jsonlines
+
+logger = setup_logger(__name__, level="DEBUG")
 
 # -----------------------------------------------------------------------------#
 # -----------------------------------------------------------------------------#
@@ -16,9 +20,9 @@ def save_to_json(data, output_dir=None, save_name=None):
     try:
         with open(file_path, "w") as f:
             json.dump(data, f, indent=2)
-        print(f"Saved to {file_path}")
+        logger.info(f"Saved to {file_path}")
     except Exception as e:
-        print(f"Error saving to JSON: {e}")
+        logger.exception(f"Error saving to JSON: {e}")
 
 
 # -----------------------------------------------------------------------------#

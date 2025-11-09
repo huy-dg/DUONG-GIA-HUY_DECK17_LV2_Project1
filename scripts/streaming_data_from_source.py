@@ -5,6 +5,9 @@ from scripts.setup import init_source, init_streaming_process
 # from kafka_project.kafka.topic import delete_topic
 from kafka_project.kafka.producer import produce_message, final_flush
 from kafka_project.kafka.consumer import consumer_polling
+from kafka_project.core.logger import setup_logger
+
+logger = setup_logger(__name__, level="DEBUG")
 
 # -----------------------------------------------------------------------------#
 # -----------------------------------------------------------------------------#
@@ -27,7 +30,7 @@ def main():
     source_consumer = init_source()
     streaming_producer, streaming_topic_name, admin = init_streaming_process()
     try:
-        for msg in consumer_polling(consumer=source_consumer, timeout=5.0):
+        for msg, *_ in consumer_polling(consumer=source_consumer, timeout=5.0):
             produce_message(
                 producer=streaming_producer,
                 topic=streaming_topic_name,
@@ -36,14 +39,14 @@ def main():
             )
 
             while len(streaming_producer) > 100_000:
-                print("⚠️ Producer buffer full → waiting...")
+                logger.info("⚠️ Producer buffer full → waiting...")
                 streaming_producer.poll(1)
                 time.sleep(0.5)
     except KeyboardInterrupt:
-        print("❌ Streaming interrupted by user.")
+        logger.exception("❌ Streaming interrupted by user.")
     finally:
         final_flush(streaming_producer)
-        print("✅ Streaming finished.")
+        logger.info("✅ Streaming finished.")
         # delete_topic(admin, streaming_topic_name)
 
 

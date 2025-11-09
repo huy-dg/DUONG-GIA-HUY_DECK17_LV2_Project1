@@ -1,8 +1,11 @@
 import time
 
 from confluent_kafka import Producer, KafkaException
+from kafka_project.core.logger import setup_logger
 
 # from kafka_project.core.config import settings
+
+logger = setup_logger(__name__, level="DEBUG")
 
 # -----------------------------------------------------------------------------#
 # -----------------------------------------------------------------------------#
@@ -10,7 +13,7 @@ from confluent_kafka import Producer, KafkaException
 
 def create_producer(conf: dict):
     producer = Producer(conf)
-    print("✅ Producer created successfully")
+    logger.info("✅ Producer created successfully")
     return producer
 
 
@@ -28,7 +31,7 @@ def produce_message(producer, topic: str, value: str, key: str = None):
         producer.poll(0)
 
     except BufferError:
-        print("⚠️ Local producer queue is full. Flushing...")
+        logger.exception("⚠️ Local producer queue is full. Flushing...")
         producer.flush()
         time.sleep(0.5)
         producer.produce(
@@ -38,12 +41,12 @@ def produce_message(producer, topic: str, value: str, key: str = None):
             callback=delivery_report,
         )
     except KeyboardInterrupt:
-        print("❌ Production interrupted by user.")
+        logger.exception("❌ Production interrupted by user.")
         final_flush(producer)
     except KafkaException as e:
-        print(f"❌ Exception during produce: {e.args[0]}")
+        logger.exception(f"❌ Exception during produce: {e.args[0]}")
     except Exception as e:
-        print(f"❌ Unexpected error: {str(e)}")
+        logger.exception(f"❌ Unexpected error: {str(e)}")
 
 
 # -----------------------------------------------------------------------------#
@@ -51,9 +54,9 @@ def produce_message(producer, topic: str, value: str, key: str = None):
 
 def delivery_report(err, msg):
     if err is not None:
-        print(f"❌ Message delivery failed: {err.str()}")
+        logger.warning(f"❌ Message delivery failed: {err.str()}")
     else:
-        print(
+        logger.debug(
             f"✅ Message delivered to {msg.topic()} [{msg.partition()}] at offset {msg.offset()}"
         )
 
@@ -63,9 +66,9 @@ def delivery_report(err, msg):
 
 def final_flush(producer):
 
-    print("🚿 Flushing producer buffer...")
+    logger.info("🚿 Flushing producer buffer...")
     producer.flush(timeout=10)
-    print("✅ All messages flushed.")
+    logger.info("✅ All messages flushed.")
 
 
 # -----------------------------------------------------------------------------#
