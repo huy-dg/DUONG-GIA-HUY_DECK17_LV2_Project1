@@ -16,8 +16,11 @@ It is built using:
 # PREREQUISITES
 
 Miniconda or Anaconda MUST be install
+
 Kafka containers MUST be started
+
 MongoDB Community Edition MUST be install
+
 
 ---
 
@@ -35,6 +38,7 @@ MongoDB Community Edition MUST be install
     │ ├── __init__.py 
     │ ├── core/ 
     │ │ ├── config.py 
+    │ │ ├── logger.py 
     │ │ └── json_processing.py 
     │ └── kafka/ 
     │   ├── consumer.py 
@@ -95,6 +99,22 @@ All configuration is handled in src/kafka_project/core/config.py
 JSON parsing and validation are handled in json_processing.py
 
 Kafka topic, consumer, and producer utilities are under src/kafka_project/kafka/
+
+Minor bugs: 
+
+- consumer - mongoDB pipeline stopped after a while when waiting for message in topic.
+
+- offset_metadata some how only got data of partition 0 and 2.
+
+Improvement in next update:
+
+- Will fix minor bugs.
+
+- Will combine 2 script into 1 main.py script.
+
+Future improvements:
+
+- Rebuild source-to-producer pipeline with queuing model to improve throughput.
 
 ---
 

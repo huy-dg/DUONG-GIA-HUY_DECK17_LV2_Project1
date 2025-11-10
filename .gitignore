@@ -11,7 +11,7 @@ __pycache__/
 # ==========================
 # Package management
 # ==========================
-poetry.lock
+# poetry.lock
 
 # ==========================
 # IDE / editor files
